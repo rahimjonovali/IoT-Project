@@ -1,99 +1,67 @@
 #include <WiFi.h>
-#include <HTTPClient.h>
-#include <Arduino_JSON.h>
+#include <WebServer.h>
 
-// Replace with your actual WiFi credentials
-const char* ssid = "Mi 10";
-const char* password = "22222222";
+// Define the Access Point credentials
+const char* ssid = "ESP32-AP";
+const char* password = "12345678";
 
-// Replace with your OpenWeatherMap API key
-String openWeatherMapApiKey = "42342f9399873f9fc8c61865fec9fb46";
+// Create a web server object that listens for HTTP request on port 80
+WebServer server(80);
 
-// City and Country Code
-String city = "Tashkent";
-String countryCode = "UZ";
+// Define the GPIO pin where the LED is connected
+const int ledPin = 2;
 
-// Timing
-unsigned long lastTime = 0;
-unsigned long timerDelay = 10000; // 10 seconds
-
-String jsonBuffer;
-
-// ========= HTTP GET Request Function =========
-String httpGETRequest(const char* serverName) {
-  WiFiClient client;
-  HTTPClient http;
-
-  http.begin(client, serverName);
-  int httpResponseCode = http.GET();
-
-  String payload = "{}";
-
-  if (httpResponseCode > 0) {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-    payload = http.getString();
-  } else {
-    Serial.print("Error code: ");
-    Serial.println(httpResponseCode);
-  }
-
-  http.end();
-  return payload;
+// Function to handle the root path "/"
+void handleRoot() {
+  String html = "<!DOCTYPE html><html><head><title>ESP32 Control</title></head><body>";
+  html += "<h1>ESP32 Web Server</h1>";
+  html += "<p><a href=\"/on\"><button>ON</button></a></p>";
+  html += "<p><a href=\"/off\"><button>OFF</button></a></p>";
+  html += "</body></html>";
+  server.send(200, "text/html", html);
 }
 
-// ========= Setup =========
+// Function to handle the "/on" path
+void handleOn() {
+  digitalWrite(ledPin, HIGH);
+  Serial.println("LED turned ON");
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
+// Function to handle the "/off" path
+void handleOff() {
+  digitalWrite(ledPin, LOW);
+  Serial.println("LED turned OFF");
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
+
 void setup() {
+  // Initialize serial communication
   Serial.begin(115200);
 
-  WiFi.begin(ssid, password);
-  Serial.println("Connecting to WiFi...");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
-  Serial.print("Connected! IP: ");
-  Serial.println(WiFi.localIP());
+  // Set the LED pin as output
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW); // Initialize LED to be off
 
-  Serial.println("Waiting 10 seconds before first request...");
+  // Start the Access Point
+  WiFi.softAP(ssid, password);
+  Serial.println("Access Point Started");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.softAPIP());
+
+  // Define the routes for the web server
+  server.on("/", handleRoot);
+  server.on("/on", handleOn);
+  server.on("/off", handleOff);
+
+  // Start the server
+  server.begin();
+  Serial.println("HTTP server started");
 }
 
-// ========= Loop =========
 void loop() {
-  if ((millis() - lastTime) > timerDelay) {
-    if (WiFi.status() == WL_CONNECTED) {
-      String serverPath = "http://api.openweathermap.org/data/2.5/weather?q=" + city + "," + countryCode + "&units=metric&APPID=" + openWeatherMapApiKey;
-
-      jsonBuffer = httpGETRequest(serverPath.c_str());
-      Serial.println("Raw JSON:");
-      Serial.println(jsonBuffer);
-
-      JSONVar myObject = JSON.parse(jsonBuffer);
-
-      if (JSON.typeof(myObject) == "undefined") {
-        Serial.println("❌ Failed to parse JSON.");
-        return;
-      }
-
-      Serial.println("✅ Weather Data:");
-      Serial.print("City: ");
-      Serial.println((const char*)myObject["name"]);
-
-      Serial.print("Temperature (°C): ");
-      Serial.println((double)myObject["main"]["temp"]);
-
-      Serial.print("Pressure (hPa): ");
-      Serial.println((int)myObject["main"]["pressure"]);
-
-      Serial.print("Humidity (%): ");
-      Serial.println((int)myObject["main"]["humidity"]);
-
-      Serial.print("Wind Speed (m/s): ");
-      Serial.println((double)myObject["wind"]["speed"]);
-    } else {
-      Serial.println("❌ WiFi Disconnected.");
-    }
-    lastTime = millis();
-  }
+  // Handle client requests
+  server.handleClient();
 }
