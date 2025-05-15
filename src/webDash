@@ -1,0 +1,67 @@
+// #include <WiFi.h>
+// #include <WebServer.h>
+
+// // Define the Access Point credentials
+// const char* ssid = "ESP32-AP";
+// const char* password = "12345678";
+
+// // Create a web server object that listens for HTTP request on port 80
+// WebServer server(80);
+
+// // Define the GPIO pin where the LED is connected
+// const int ledPin = 2;
+
+// // Function to handle the root path "/"
+// void handleRoot() {
+//   String html = "<!DOCTYPE html><html><head><title>ESP32 Control</title></head><body>";
+//   html += "<h1>ESP32 Web Server</h1>";
+//   html += "<p><a href=\"/on\"><button>ON</button></a></p>";
+//   html += "<p><a href=\"/off\"><button>OFF</button></a></p>";
+//   html += "</body></html>";
+//   server.send(200, "text/html", html);
+// }
+
+// // Function to handle the "/on" path
+// void handleOn() {
+//   digitalWrite(ledPin, HIGH);
+//   Serial.println("LED turned ON");
+//   server.sendHeader("Location", "/");
+//   server.send(303);
+// }
+
+// // Function to handle the "/off" path
+// void handleOff() {
+//   digitalWrite(ledPin, LOW);
+//   Serial.println("LED turned OFF");
+//   server.sendHeader("Location", "/");
+//   server.send(303);
+// }
+
+// void setup() {
+//   // Initialize serial communication
+//   Serial.begin(115200);
+
+//   // Set the LED pin as output
+//   pinMode(ledPin, OUTPUT);
+//   digitalWrite(ledPin, LOW); // Initialize LED to be off
+
+//   // Start the Access Point
+//   WiFi.softAP(ssid, password);
+//   Serial.println("Access Point Started");
+//   Serial.print("IP Address: ");
+//   Serial.println(WiFi.softAPIP());
+
+//   // Define the routes for the web server
+//   server.on("/", handleRoot);
+//   server.on("/on", handleOn);
+//   server.on("/off", handleOff);
+
+//   // Start the server
+//   server.begin();
+//   Serial.println("HTTP server started");
+// }
+
+// void loop() {
+//   // Handle client requests
+//   server.handleClient();
+// }

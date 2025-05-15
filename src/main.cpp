@@ -1,67 +1,81 @@
 #include <WiFi.h>
-#include <WebServer.h>
+#include <PubSubClient.h>
 
-// Define the Access Point credentials
-const char* ssid = "ESP32-AP";
-const char* password = "12345678";
+// WiFi credentials
+const char* ssid = "Mi 10";
+const char* password = "77777777";
 
-// Create a web server object that listens for HTTP request on port 80
-WebServer server(80);
+// MQTT Broker IP
+const char* mqtt_server = "206.189.51.153";
 
-// Define the GPIO pin where the LED is connected
-const int ledPin = 2;
+// WiFi and MQTT clients
+WiFiClient espClient;
+PubSubClient client(espClient);
 
-// Function to handle the root path "/"
-void handleRoot() {
-  String html = "<!DOCTYPE html><html><head><title>ESP32 Control</title></head><body>";
-  html += "<h1>ESP32 Web Server</h1>";
-  html += "<p><a href=\"/on\"><button>ON</button></a></p>";
-  html += "<p><a href=\"/off\"><button>OFF</button></a></p>";
-  html += "</body></html>";
-  server.send(200, "text/html", html);
+// Relay pin
+const int relayPin = 5;
+
+void setup_wifi() {
+  delay(10);
+  Serial.println("Connecting to My WiFi...");
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
 }
 
-// Function to handle the "/on" path
-void handleOn() {
-  digitalWrite(ledPin, HIGH);
-  Serial.println("LED turned ON");
-  server.sendHeader("Location", "/");
-  server.send(303);
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  
+  String message;
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  Serial.println(message);
+
+  if (message == "ON") {
+    digitalWrite(relayPin, HIGH);
+  } else if (message == "OFF") {
+    digitalWrite(relayPin, LOW);
+  }
 }
 
-// Function to handle the "/off" path
-void handleOff() {
-  digitalWrite(ledPin, LOW);
-  Serial.println("LED turned OFF");
-  server.sendHeader("Location", "/");
-  server.send(303);
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    if (client.connect("ESP32Client")) {
+      Serial.println("connected");
+      client.subscribe("home/relay1/control");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      delay(2000);
+    }
+  }
 }
 
 void setup() {
-  // Initialize serial communication
   Serial.begin(115200);
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, LOW);  // Start with relay OFF
 
-  // Set the LED pin as output
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW); // Initialize LED to be off
-
-  // Start the Access Point
-  WiFi.softAP(ssid, password);
-  Serial.println("Access Point Started");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.softAPIP());
-
-  // Define the routes for the web server
-  server.on("/", handleRoot);
-  server.on("/on", handleOn);
-  server.on("/off", handleOff);
-
-  // Start the server
-  server.begin();
-  Serial.println("HTTP server started");
+  setup_wifi();
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
 }
 
 void loop() {
-  // Handle client requests
-  server.handleClient();
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
 }
