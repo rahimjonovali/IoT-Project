@@ -7,14 +7,16 @@ const char* password = "77777777";
 
 // MQTT Broker IP
 const char* mqtt_server = "206.189.51.153";
+const char* mqtt_user = "userA";
+const char* mqtt_password = "12345678913";
 
 // WiFi and MQTT clients
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 // Relay pin
-const int relayPin = 5;
-
+const int relayPin = 2;
+// const int ledPin = 2;
 void setup_wifi() {
   delay(10);
   Serial.println("Connecting to My WiFi...");
@@ -52,8 +54,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
 void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
-    if (client.connect("ESP32Client")) {
-      Serial.println("connected");
+    if (client.connect("ESP32Client", mqtt_user,mqtt_password)) {
+      Serial.println("\nConnected to");
       client.subscribe("home/relay1/control");
     } else {
       Serial.print("failed, rc=");
